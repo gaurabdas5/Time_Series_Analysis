@@ -1,0 +1,162 @@
+#Software used: R
+#Gaurab Das
+#Problem
+#1.fit an appropriate time series model 
+#2.Find 1-20 step ahead forecast values of the model
+#3.Plot actual and the fitted series 
+
+
+library(tseries)
+library(urca)
+library(forecast)
+
+Data<- read.csv("D:/Data Science/ISI/Time Series/time series practical.csv")
+head(Data)
+length(Data$y) #576
+
+plot(Data,type="l")
+ts.plot(Data$y)
+summary(Data)
+
+#Augmented Dickey Fuller Test
+#H0: Series is stationary
+#H1: Series is not stationary
+
+summary(ur.df(Data$y, type = c("trend"), lags = 30, selectlags = c("AIC")))
+#Value of test-statistic is: -1.7781 
+#Critical Value: -3.96 
+#Reject Null Hypo. Therefore, Non Stationary 
+
+#Differencing 
+S_data = Data$y[2:length(Data$y)]-Data$y[1:length(Data$y)-1]
+length(S_data)
+
+#ADF
+summary(ur.df(S_data, type = c("trend"), lags = 30, selectlags = c("AIC")))
+#Value of test-statistic is: -5.1141 
+#Critical Value: -3.96
+
+#Stationary 
+#Accept Null Hypo
+
+
+#length(Differ)
+
+
+#Correlogram Analysis
+
+#Ho:P1=P2=....=P20=0
+#H1: atleast one non zero
+
+#Test Statistic-Box Test
+
+PValue=c()
+Conclusion=c()
+TestStatistic=c()
+for(i in 1:20){
+  
+  T_Stat= Box.test(S_data, lag = i, type = c("Ljung-Box"))
+  PValue[i]=T_Stat$p.value
+  TestStatistic[i]=T_Stat$statistic
+  
+}
+
+
+for(i in 1:20){
+  if(PValue[i]>0.05){
+    
+    Conclsuion[i]="Ho Fail to reject"
+    
+  }
+  else
+  {
+    Conclusion[i]="Ho Rejected"
+    
+  }
+}  
+
+Acf=acf(S_data,lag.max =20)
+Acf$acf
+ACF = c(Acf$acf[2:21])
+plot(Acf)
+#ACF diminishing
+
+ACF_test=data.frame(ACF,TestStatistic,PValue,Conclusion)
+#H0 rejected
+#ACF diminishing and H0 rejected. Hence, suggesting it to be an AR or ARMA model and not MA
+
+#PACF: Partial Aurtocorrelation factor analysis
+pacf=pacf(S_data,lag.max = 20)
+PACF = (pacf$acf)
+test_stat_pacf = PACF * sqrt(length(S_data))
+
+Conclusion_Pacf = c()
+for ( i in 1:20){
+  if (abs(test_stat_pacf[i])>1.96){
+    
+    Conclusion_Pacf[i]= "Ho Rejected"  
+  } else 
+  { Conclusion_Pacf[i]= "Ho Fail to reject"}
+}
+
+
+
+
+PACF_Test =  data.frame (PACF,test_stat_pacf=abs(test_stat_pacf), 
+                         Criticalvalue = rep(1.96,20),Conclusion_Pacf)
+
+#from Phi 14 onwards, Ho accepts therefore, AR 13
+
+
+AR=arima(S_data, order = c(13,0,0))
+#AR 13 model
+
+fitted =  S_data - AR$residuals
+
+#Residual Diagnostic
+AR_Res=AR$residuals
+
+ACF_AR_Res = acf(AR_Res,lag.max = 20)
+
+ACF_AR_Res =  c(ACF_AR_Res$acf[2:21])
+
+plot(ACF_AR_Res)
+PValue_res=c()
+TestStat_res=c()
+for(i in 1:20){
+  
+  Test= Box.test(AR_Res, lag = i, type = "Ljung-Box")
+  PValue_res[i]=Test$p.value
+  TestStat_res[i]=Test$statistic
+  
+}
+Conclusion_res = c()
+for(i in 1:20){
+  if(PValue_res[i]>0.05){
+    
+    Conclusion_res[i]="Ho Fail to reject"
+    
+  }
+  else
+  {
+    Conclusion_res[i]="Ho Rejected"
+    
+  }
+}  
+
+Residual = data.frame(ACF_AR_Res,TestStat_res,PValue,Conclusion_res)
+#Fail to reject H0
+#Residual is White Noise 
+
+#Forecasting
+Forecast_20=forecast(AR,h=20)
+plot(Forecast_20, xlab = "Time", ylab =  "Forecast")
+a = Forecast_20
+  
+a=data.frame(a)
+
+#Fitted Vs Actual
+fitted =  S_data - AR$residuals
+plot(S_data, type = "l", xlab="Time", ylab = "Yt")
+lines(fitted, type = "l", col = "Red")
+
