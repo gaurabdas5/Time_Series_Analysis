@@ -10,7 +10,7 @@ library(tseries)
 library(urca)
 library(forecast)
 
-Data<- read.csv("D:/Data Science/ISI/Time Series/time series practical.csv")
+Data<- read.csv("D:/Data Science/CPI.csv")
 head(Data)
 length(Data$y) #576
 
